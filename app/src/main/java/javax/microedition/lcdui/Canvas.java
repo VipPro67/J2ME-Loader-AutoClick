@@ -507,7 +507,7 @@ public abstract class Canvas extends Displayable {
 	 * @param x the pointer coordinate on the real screen
 	 * @return the corresponding pointer coordinate on the virtual screen
 	 */
-	private float convertPointerX(float x) {
+	public float convertPointerX(float x) {
 		return (x - onX) * width / onWidth;
 	}
 
@@ -517,7 +517,7 @@ public abstract class Canvas extends Displayable {
 	 * @param y the pointer coordinate on the real screen
 	 * @return the corresponding pointer coordinate on the virtual screen
 	 */
-	private float convertPointerY(float y) {
+	public float convertPointerY(float y) {
 		return (y - onY) * height / onHeight;
 	}
 

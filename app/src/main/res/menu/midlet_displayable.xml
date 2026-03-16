@@ -26,6 +26,10 @@
             android:title="@string/PREF_LIMIT_FPS" />
 
         <item
+            android:id="@+id/action_auto_click"
+            android:title="@string/auto_click" />
+
+        <item
             android:id="@+id/action_submenu_vk"
             android:title="@string/PREF_VIRTUAL_KEYBOARD_OPTIONS">
             <menu>

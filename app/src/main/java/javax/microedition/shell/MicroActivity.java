@@ -45,7 +45,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
+import android.view.MotionEvent;
 import android.widget.AdapterView.AdapterContextMenuInfo;
+import android.view.Gravity;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.Toast;
@@ -61,6 +64,13 @@ import androidx.preference.PreferenceManager;
 import org.acra.ACRA;
 import org.acra.ErrorReporter;
 
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
+import android.widget.ScrollView;
+import android.widget.TextView;
+
+import android.graphics.Color;
+import android.text.Html;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
@@ -68,6 +78,7 @@ import java.util.LinkedHashMap;
 import java.util.Objects;
 
 import javax.microedition.lcdui.Alert;
+import javax.microedition.lcdui.AutoClickManager;
 import javax.microedition.lcdui.Canvas;
 import javax.microedition.lcdui.Displayable;
 import javax.microedition.lcdui.Form;
@@ -102,6 +113,212 @@ public class MicroActivity extends AppCompatActivity {
 	private InputMethodManager inputMethodManager;
 	private int menuKey;
 	private String appPath;
+	private final AutoClickManager autoClickManager = new AutoClickManager();
+
+	private static class ActionRow {
+		LinearLayout view;
+		RadioButton rbTap, rbKey;
+		EditText etX, etY, etKeyCode, etHold, etDelay;
+		Button btnRemove, btnPick;
+
+		ActionRow(android.content.Context ctx, float dp, Runnable onPick) {
+			int p = (int) (8 * dp);
+			int sp = (int) (4 * dp);
+			view = new LinearLayout(ctx);
+			view.setOrientation(LinearLayout.VERTICAL);
+			view.setBackgroundResource(android.R.drawable.dialog_holo_light_frame);
+			view.setPadding(p, p, p, p);
+			LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+			lp.setMargins(0, 0, 0, (int) (12 * dp));
+			view.setLayoutParams(lp);
+
+			// --- Row 1: Mode & Remove ---
+			LinearLayout row1 = new LinearLayout(ctx);
+			row1.setGravity(Gravity.CENTER_VERTICAL);
+			RadioGroup group = new RadioGroup(ctx);
+			group.setOrientation(RadioGroup.HORIZONTAL);
+			rbTap = new RadioButton(ctx);
+			rbTap.setText(R.string.auto_click_tap);
+			rbTap.setId(View.generateViewId());
+			rbKey = new RadioButton(ctx);
+			rbKey.setText(R.string.auto_click_key);
+			rbKey.setId(View.generateViewId());
+			group.addView(rbTap);
+			group.addView(rbKey);
+			rbTap.setChecked(true);
+			row1.addView(group, new LinearLayout.LayoutParams(0, -2, 1));
+
+			btnRemove = new Button(ctx, null, android.R.attr.buttonStyleSmall);
+			btnRemove.setText(R.string.auto_click_remove_action);
+			btnRemove.setTextColor(0xFFFF4444);
+			row1.addView(btnRemove);
+			view.addView(row1);
+
+			// --- Row 2: Inputs (X/Y or KeyCode) ---
+			LinearLayout row2 = new LinearLayout(ctx);
+			row2.setOrientation(LinearLayout.HORIZONTAL);
+			row2.setGravity(Gravity.BOTTOM);
+
+			// TAP segment
+			LinearLayout segTap = new LinearLayout(ctx);
+			segTap.setOrientation(LinearLayout.HORIZONTAL);
+			segTap.setGravity(Gravity.BOTTOM);
+			etX = makeField(ctx, "X", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_SIGNED, "50");
+			etY = makeField(ctx, "Y", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_SIGNED, "50");
+			segTap.addView(etX, new LinearLayout.LayoutParams(0, -2, 1));
+			segTap.addView(etY, new LinearLayout.LayoutParams(0, -2, 1));
+			btnPick = new Button(ctx, null, android.R.attr.buttonStyleSmall);
+			btnPick.setText(R.string.auto_click_pick);
+			segTap.addView(btnPick);
+			row2.addView(segTap, new LinearLayout.LayoutParams(0, -2, 1));
+
+			// KEY segment
+			etKeyCode = makeField(ctx, "Key Code", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_SIGNED, "-5");
+			etKeyCode.setVisibility(View.GONE);
+			row2.addView(etKeyCode, new LinearLayout.LayoutParams(0, -2, 1));
+			view.addView(row2);
+
+			// --- Row 3: Timing (Hold & Delay) ---
+			LinearLayout row3 = new LinearLayout(ctx);
+			etHold = makeField(ctx, "Hold (ms)", InputType.TYPE_CLASS_NUMBER, "50");
+			etDelay = makeField(ctx, "Delay (ms)", InputType.TYPE_CLASS_NUMBER, "500");
+			row3.addView(etHold, new LinearLayout.LayoutParams(0, -2, 1));
+			row3.addView(etDelay, new LinearLayout.LayoutParams(0, -2, 1));
+			view.addView(row3);
+
+			group.setOnCheckedChangeListener((g, id) -> {
+				boolean tap = id == rbTap.getId();
+				segTap.setVisibility(tap ? View.VISIBLE : View.GONE);
+				etKeyCode.setVisibility(tap ? View.GONE : View.VISIBLE);
+			});
+
+			btnPick.setOnClickListener(v -> onPick.run());
+		}
+
+		private static EditText makeField(android.content.Context ctx, String label, int type, String def) {
+			LinearLayout container = new LinearLayout(ctx);
+			container.setOrientation(LinearLayout.VERTICAL);
+			TextView tv = new TextView(ctx);
+			tv.setText(label);
+			tv.setTextSize(10);
+			container.addView(tv);
+			EditText et = new EditText(ctx);
+			et.setInputType(type);
+			et.setText(def);
+			et.setTextSize(14);
+			et.setSelectAllOnFocus(true);
+			container.addView(et);
+			// We return the EditText but it's wrapped in a container. 
+			// Wait, if we return the ET, we lose the container reference for adding to parent.
+			// Let's return the container and expose the ET.
+			return et; 
+		}
+
+		// Since our makeField returns ET, we need to wrap it ourselves in the constructor rows
+		// to include the tiny labels. Let's fix makeField to be a helper that Adds to a parent instead.
+		private static EditText addLabeledField(LinearLayout parent, String label, int type, String def) {
+			android.content.Context ctx = parent.getContext();
+			LinearLayout container = new LinearLayout(ctx);
+			container.setOrientation(LinearLayout.VERTICAL);
+			TextView tv = new TextView(ctx);
+			tv.setText(label);
+			tv.setTextSize(10);
+			tv.setTextColor(Color.WHITE);
+			tv.setPadding((int)(4*ctx.getResources().getDisplayMetrics().density), 0, 0, 0);
+			container.addView(tv);
+			EditText et = new EditText(ctx);
+			et.setInputType(type);
+			et.setText(def);
+			et.setTextSize(14);
+			et.setTextColor(Color.WHITE);
+			et.setHintTextColor(0x88FFFFFF);
+			et.setPadding((int)(4*ctx.getResources().getDisplayMetrics().density), 0, (int)(4*ctx.getResources().getDisplayMetrics().density), 0);
+			container.addView(et);
+			parent.addView(container, new LinearLayout.LayoutParams(0, -2, 1));
+			return et;
+		}
+
+		// Re-wrapping the constructor logic to use addLabeledField
+		static ActionRow create(android.content.Context ctx, float dp, Runnable onPick) {
+			ActionRow ar = new ActionRow();
+			int p = (int) (8 * dp);
+			ar.view = new LinearLayout(ctx);
+			ar.view.setOrientation(LinearLayout.VERTICAL);
+			ar.view.setBackgroundResource(android.R.drawable.dialog_holo_dark_frame);
+			ar.view.setPadding(p, p, p, p);
+			ar.view.setAlpha(0.9f);
+			LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+			lp.setMargins(0, 0, 0, (int) (12 * dp));
+			ar.view.setLayoutParams(lp);
+
+			LinearLayout r1 = new LinearLayout(ctx);
+			r1.setGravity(Gravity.CENTER_VERTICAL);
+			RadioGroup g = new RadioGroup(ctx); g.setOrientation(RadioGroup.HORIZONTAL);
+			ar.rbTap = new RadioButton(ctx); ar.rbTap.setText(R.string.auto_click_tap); ar.rbTap.setId(View.generateViewId());
+			ar.rbTap.setTextColor(Color.WHITE);
+			ar.rbKey = new RadioButton(ctx); ar.rbKey.setText(R.string.auto_click_key); ar.rbKey.setId(View.generateViewId());
+			ar.rbKey.setTextColor(Color.WHITE);
+			g.addView(ar.rbTap); g.addView(ar.rbKey); ar.rbTap.setChecked(true);
+			r1.addView(g, new LinearLayout.LayoutParams(0, -2, 1));
+			ar.btnRemove = new Button(ctx, null, android.R.attr.buttonStyleSmall);
+			ar.btnRemove.setText(R.string.auto_click_remove_action); ar.btnRemove.setTextColor(0xFFFF4444);
+			r1.addView(ar.btnRemove); ar.view.addView(r1);
+
+			LinearLayout r2 = new LinearLayout(ctx);
+			LinearLayout sTap = new LinearLayout(ctx); sTap.setGravity(Gravity.BOTTOM);
+			ar.etX = addLabeledField(sTap, "X", InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_SIGNED, "50");
+			ar.etY = addLabeledField(sTap, "Y", InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_SIGNED, "50");
+			ar.btnPick = new Button(ctx, null, android.R.attr.buttonStyleSmall); 
+			ar.btnPick.setText(R.string.auto_click_pick);
+			ar.btnPick.setTextColor(Color.WHITE);
+			sTap.addView(ar.btnPick);
+			r2.addView(sTap, new LinearLayout.LayoutParams(0, -2, 1));
+			ar.etKeyCode = addLabeledField(r2, "Key Code", InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_SIGNED, "-5");
+			((View) ar.etKeyCode.getParent()).setVisibility(View.GONE); // Hide the container
+			ar.view.addView(r2);
+
+			LinearLayout r3 = new LinearLayout(ctx);
+			ar.etHold = addLabeledField(r3, "Hold (ms)", InputType.TYPE_CLASS_NUMBER, "50");
+			ar.etDelay = addLabeledField(r3, "Delay (ms)", InputType.TYPE_CLASS_NUMBER, "500");
+			ar.view.addView(r3);
+
+			g.setOnCheckedChangeListener((group, id) -> {
+				boolean tap = id == ar.rbTap.getId();
+				sTap.setVisibility(tap ? View.VISIBLE : View.GONE);
+				((View) ar.etKeyCode.getParent()).setVisibility(tap ? View.GONE : View.VISIBLE);
+			});
+			ar.btnPick.setOnClickListener(v -> onPick.run());
+			return ar;
+		}
+
+		private ActionRow() {} // Private for the factory
+
+		AutoClickManager.AutoAction toAutoAction() {
+			long hold = parseLongSafe(etHold.getText().toString(), 50);
+			long delay = parseLongSafe(etDelay.getText().toString(), 500);
+			if (rbTap.isChecked()) {
+				int x = parseIntSafe(etX.getText().toString(), 50);
+				int y = parseIntSafe(etY.getText().toString(), 50);
+				return AutoClickManager.AutoAction.tap(x, y, hold, delay);
+			} else {
+				int kc = parseIntSafe(etKeyCode.getText().toString(), -5);
+				return AutoClickManager.AutoAction.key(kc, hold, delay);
+			}
+		}
+
+		void fromAutoAction(AutoClickManager.AutoAction action) {
+			if (action.type == AutoClickManager.ActionType.TAP) {
+				rbTap.setChecked(true);
+				etX.setText(String.valueOf(action.x));
+				etY.setText(String.valueOf(action.y));
+			} else {
+				rbKey.setChecked(true);
+				etKeyCode.setText(String.valueOf(action.keyCode));
+			}
+			etHold.setText(String.valueOf(action.holdMs));
+			etDelay.setText(String.valueOf(action.delayMs));
+		}
+	}
 
 	public ActivityMicroBinding binding;
 
@@ -212,6 +429,7 @@ public class MicroActivity extends AppCompatActivity {
 	public void onPause() {
 		visible = false;
 		hideSoftInput();
+		autoClickManager.stop();
 		MidletThread.pauseApp();
 		super.onPause();
 	}
@@ -476,6 +694,8 @@ public class MicroActivity extends AppCompatActivity {
 			takeScreenshot();
 		} else if (id == R.id.action_limit_fps) {
 			showLimitFpsDialog();
+		} else if (id == R.id.action_auto_click) {
+			showAutoClickDialog();
 		} else if (ContextHolder.getVk() != null) {
 			// Handled only when virtual keyboard is enabled
 			handleVkOptions(id);
@@ -630,6 +850,203 @@ public class MicroActivity extends AppCompatActivity {
 				.show();
 	}
 
+	private void showAutoClickDialog() {
+		showAutoClickDialog(null);
+	}
+
+	/**
+	 * Shows the Auto-Click configuration dialog.
+	 * Supports multiple actions, script persistence, and screen point picking.
+	 */
+	private void showAutoClickDialog(java.util.List<AutoClickManager.AutoAction> initialSequence) {
+		if (!(current instanceof Canvas)) return;
+		final Canvas canvas = (Canvas) current;
+		float dp = getResources().getDisplayMetrics().density;
+		int pad = (int) (16 * dp);
+
+		ScrollView scroll = new ScrollView(this);
+		LinearLayout root = new LinearLayout(this);
+		root.setOrientation(LinearLayout.VERTICAL);
+		root.setPadding(pad, pad, pad, pad);
+		scroll.addView(root);
+
+		// Header row: Title + Save/Load
+		LinearLayout header = new LinearLayout(this);
+		header.setOrientation(LinearLayout.HORIZONTAL);
+		header.setGravity(Gravity.CENTER_VERTICAL);
+		TextView tvTitle = new TextView(this);
+		tvTitle.setText(R.string.auto_click);
+		tvTitle.setTextSize(20);
+		tvTitle.setTextColor(Color.WHITE);
+		tvTitle.setPadding(0, 0, 0, (int)(8*dp));
+		tvTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+		header.addView(tvTitle, new LinearLayout.LayoutParams(0, -2, 1));
+
+		Button btnHelp = new Button(this, null, android.R.attr.buttonStyleSmall);
+		btnHelp.setText("?");
+		btnHelp.setTextColor(Color.CYAN);
+		btnHelp.setOnClickListener(v -> {
+			new AlertDialog.Builder(this)
+					.setTitle(R.string.auto_click_help)
+					.setMessage(Html.fromHtml(getString(R.string.auto_click_help_text)))
+					.setPositiveButton(android.R.string.ok, null)
+					.show();
+		});
+		header.addView(btnHelp);
+
+		Button btnLoad = new Button(this, null, android.R.attr.buttonStyleSmall);
+		btnLoad.setText(R.string.auto_click_load);
+		btnLoad.setTextColor(Color.WHITE);
+		header.addView(btnLoad);
+
+		Button btnSave = new Button(this, null, android.R.attr.buttonStyleSmall);
+		btnSave.setText(R.string.auto_click_save);
+		btnSave.setTextColor(Color.WHITE);
+		header.addView(btnSave);
+		root.addView(header);
+
+		LinearLayout actionsContainer = new LinearLayout(this);
+		actionsContainer.setOrientation(LinearLayout.VERTICAL);
+		root.addView(actionsContainer);
+
+		java.util.List<ActionRow> rows = new java.util.ArrayList<>();
+		AlertDialog[] dialog = {null};
+
+		final Runnable addRow = new Runnable() {
+			@Override
+			public void run() {
+				final ActionRow rowHolder[] = {null};
+				final Runnable pickTask = () -> {
+					// Collect current state before dismissing
+					java.util.List<AutoClickManager.AutoAction> currentSeq = new java.util.ArrayList<>();
+					for (ActionRow r : rows) currentSeq.add(r.toAutoAction());
+					int targetIndex = rows.indexOf(rowHolder[0]);
+
+					dialog[0].dismiss();
+					Toast.makeText(MicroActivity.this, R.string.auto_click_pick_instruction, Toast.LENGTH_LONG).show();
+					
+					// Use a transparent overlay to catch the next click
+					View overlay = new View(MicroActivity.this);
+					overlay.setBackgroundColor(0x22000000);
+					binding.displayableContainer.addView(overlay, new ViewGroup.LayoutParams(-1, -1));
+					overlay.setOnTouchListener((v, event) -> {
+						if (event.getAction() == MotionEvent.ACTION_DOWN) {
+							int vx = (int) canvas.convertPointerX(event.getX());
+							int vy = (int) canvas.convertPointerY(event.getY());
+							
+							// Update coordinates in the temporary sequence
+							AutoClickManager.AutoAction targeted = currentSeq.get(targetIndex);
+							targeted.x = vx;
+							targeted.y = vy;
+							
+							binding.displayableContainer.removeView(overlay);
+							showAutoClickDialog(currentSeq); // Re-open with results
+							return true;
+						}
+						return false;
+					});
+				};
+				rowHolder[0] = ActionRow.create(MicroActivity.this, dp, pickTask);
+				actionsContainer.addView(rowHolder[0].view);
+				rows.add(rowHolder[0]);
+				rowHolder[0].btnRemove.setOnClickListener(v -> {
+					actionsContainer.removeView(rowHolder[0].view);
+					rows.remove(rowHolder[0]);
+				});
+			}
+		};
+
+		// Load initial sequence or start with one empty row
+		if (initialSequence != null && !initialSequence.isEmpty()) {
+			for (AutoClickManager.AutoAction action : initialSequence) {
+				addRow.run();
+				rows.get(rows.size() - 1).fromAutoAction(action);
+			}
+		} else {
+			addRow.run();
+		}
+
+		Button btnAdd = new Button(this);
+		btnAdd.setText(R.string.auto_click_add_action);
+		btnAdd.setCompoundDrawablesWithIntrinsicBounds(android.R.drawable.ic_input_add, 0, 0, 0);
+		root.addView(btnAdd);
+
+		btnAdd.setOnClickListener(v -> addRow.run());
+
+		btnSave.setOnClickListener(v -> {
+			EditText etFilename = new EditText(this);
+			etFilename.setHint(R.string.auto_click_enter_filename);
+			new AlertDialog.Builder(this)
+					.setTitle(R.string.auto_click_save)
+					.setView(etFilename)
+					.setPositiveButton(android.R.string.ok, (d, w) -> {
+						String name = etFilename.getText().toString();
+						if (TextUtils.isEmpty(name)) return;
+						File dir = new File(appPath, "autoclick");
+						dir.mkdirs();
+						File file = new File(dir, name + ".json");
+						java.util.List<AutoClickManager.AutoAction> seq = new java.util.ArrayList<>();
+						for (ActionRow r : rows) seq.add(r.toAutoAction());
+						try {
+							AutoClickManager.saveScript(file, seq);
+							Toast.makeText(this, R.string.auto_click_script_saved, Toast.LENGTH_SHORT).show();
+						} catch (IOException e) {
+							Toast.makeText(this, e.getMessage(), Toast.LENGTH_SHORT).show();
+						}
+					}).show();
+		});
+
+		btnLoad.setOnClickListener(v -> {
+			File dir = new File(appPath, "autoclick");
+			String[] files = dir.exists() ? dir.list((d, n) -> n.endsWith(".json")) : null;
+			if (files == null || files.length == 0) {
+				Toast.makeText(this, "No scripts found", Toast.LENGTH_SHORT).show();
+				return;
+			}
+			new AlertDialog.Builder(this)
+					.setTitle(R.string.auto_click_load)
+					.setItems(files, (d, which) -> {
+						try {
+							java.util.List<AutoClickManager.AutoAction> seq = AutoClickManager.loadScript(new File(dir, files[which]));
+							dialog[0].dismiss();
+							showAutoClickDialog(seq);
+						} catch (Exception e) {
+							Toast.makeText(this, R.string.auto_click_invalid_script, Toast.LENGTH_SHORT).show();
+						}
+					}).show();
+		});
+
+		boolean isRunning = autoClickManager.isRunning();
+		String posLabel = isRunning ? getString(R.string.auto_click_stop) : getString(R.string.auto_click_start);
+
+		dialog[0] = new AlertDialog.Builder(this)
+				.setTitle(R.string.auto_click)
+				.setView(scroll)
+				.setPositiveButton(posLabel, (d, w) -> {
+					if (autoClickManager.isRunning()) {
+						autoClickManager.stop();
+						Toast.makeText(this, R.string.auto_click_stopped, Toast.LENGTH_SHORT).show();
+						return;
+					}
+					java.util.List<AutoClickManager.AutoAction> sequence = new java.util.ArrayList<>();
+					for (ActionRow row : rows) sequence.add(row.toAutoAction());
+					if (!sequence.isEmpty()) {
+						autoClickManager.startSequence(canvas, sequence);
+						Toast.makeText(this, R.string.auto_click_running, Toast.LENGTH_SHORT).show();
+					}
+				})
+				.setNegativeButton(android.R.string.cancel, null)
+				.show();
+	}
+
+	private static int parseIntSafe(String s, int def) {
+		try { return Integer.parseInt(s.trim()); } catch (Exception e) { return def; }
+	}
+
+	private static long parseLongSafe(String s, long def) {
+		try { return Long.parseLong(s.trim()); } catch (Exception e) { return def; }
+	}
+
 	@Override
 	public boolean onContextItemSelected(@NonNull MenuItem item) {
 		if (current instanceof Form) {
@@ -702,6 +1119,7 @@ public class MicroActivity extends AppCompatActivity {
 
 	@Override
 	protected void onDestroy() {
+		autoClickManager.stop();
 		binding = null;
 		super.onDestroy();
 	}

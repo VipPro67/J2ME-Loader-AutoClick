@@ -28,12 +28,15 @@ android {
                 storeFile rootProject.file(System.getenv('BITRISEIO_ANDROID_KEYSTORE_NAME'))
                 storePassword System.getenv('BITRISEIO_ANDROID_KEYSTORE_PASSWORD')
             } else {
-                Properties keystoreProps = new Properties()
-                keystoreProps.load(new FileInputStream(rootProject.file("keystore.properties")))
-                keyAlias keystoreProps['keyAlias']
-                keyPassword keystoreProps['keyPassword']
-                storeFile file(keystoreProps['storeFile'])
-                storePassword keystoreProps['storePassword']
+                def keystoreFile = rootProject.file("keystore.properties")
+                if (keystoreFile.exists()) {
+                    Properties keystoreProps = new Properties()
+                    keystoreProps.load(new FileInputStream(keystoreFile))
+                    keyAlias keystoreProps['keyAlias']
+                    keyPassword keystoreProps['keyPassword']
+                    storeFile file(keystoreProps['storeFile'])
+                    storePassword keystoreProps['storePassword']
+                }
             }
         }
     }
@@ -118,7 +121,7 @@ android {
 
     applicationVariants.all {
         if (buildType.name == 'debug' && flavorName != 'midlet') {
-            resValue 'string', 'app_name', 'JL-Debug'
+            resValue 'string', 'app_name', 'JL2ME Loader VipPro67'
         }
         def baseName = flavorName == 'midlet' ? "${midletArchivesBaseName}-" : "${rootProject.name}-"
         outputs.all {

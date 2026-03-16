@@ -258,4 +258,42 @@
     <string name="default_label">"%s (default)"</string>
     <string name="not_saved_exists">Already exists</string>
     <string name="alert_rewrite_profile">A profile named \"%1$s\" already exists.\nDo you want to overwrite it?</string>
+
+    <!-- Auto-Click feature -->
+    <string name="auto_click">Auto Click</string>
+    <string name="auto_click_tap">Tap at Location</string>
+    <string name="auto_click_key">Key Press</string>
+    <string name="auto_click_start">Start</string>
+    <string name="auto_click_stop">Stop</string>
+    <string name="auto_click_interval">Interval (ms)</string>
+    <string name="auto_click_hold">Hold duration (ms)</string>
+    <string name="auto_click_x">X (virtual canvas)</string>
+    <string name="auto_click_y">Y (virtual canvas)</string>
+    <string name="auto_click_key_code">J2ME Key Code\n(UP=-1,DOWN=-2,LEFT=-3,RIGHT=-4,FIRE=-5,0-9=48-57)</string>
+    <string name="auto_click_running">Auto Click: RUNNING</string>
+    <string name="auto_click_stopped">Auto Click: Stopped</string>
+
+    <string name="auto_click_add_action">Add Action</string>
+    <string name="auto_click_remove_action">Remove</string>
+    <string name="auto_click_delay">Delay after (ms)</string>
+    <string name="auto_click_save">Save Script</string>
+    <string name="auto_click_load">Load Script</string>
+    <string name="auto_click_pick">Pick</string>
+    <string name="auto_click_pick_instruction">Click on screen to select coordinates</string>
+    <string name="auto_click_enter_filename">Enter filename</string>
+    <string name="auto_click_script_saved">Script saved</string>
+    <string name="auto_click_script_loaded">Script loaded</string>
+    <string name="auto_click_invalid_script">Invalid script file</string>
+    <string name="auto_click_help">Guide</string>
+    <string name="auto_click_help_text"><![CDATA[
+        <b>How to use Auto Click:</b><br/><br/>
+        1. <b>Add Action</b>: Add a new step to your sequence (Tap or Key).<br/>
+        2. <b>Tap</b>: Set X/Y coordinates. Use <b>Pick</b> to select a point directly on the game screen.<br/>
+        3. <b>Key</b>: Enter a J2ME Key Code (FIRE=-5, UP=-1, DOWN=-2, LEFT=-3, RIGHT=-4, 0-9=48-57).<br/>
+        4. <b>Hold</b>: Duration the action is held down (ms).<br/>
+        5. <b>Delay</b>: Wait time after this action before the next one (ms).<br/>
+        6. <b>Save/Load</b>: Save your current sequence to a script file or load an existing one.<br/>
+        7. <b>Start</b>: Loops the entire sequence indefinitely. Close the menu to see it in action!
+    ]]></string>
+
 </resources>
