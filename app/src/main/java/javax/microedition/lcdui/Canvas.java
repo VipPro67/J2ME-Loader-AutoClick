@@ -1028,6 +1028,7 @@ public abstract class Canvas extends Displayable {
 			if (event.getRepeatCount() == 0) {
 				if (overlay == null || !overlay.keyPressed(keyCode)) {
 					postKeyPressed(keyCode);
+					ContextHolder.getActivity().onAutoClickEventPressed(1, 0, 0, keyCode);
 				}
 			} else {
 				if (overlay == null || !overlay.keyRepeated(keyCode)) {
@@ -1044,6 +1045,7 @@ public abstract class Canvas extends Displayable {
 			}
 			if (overlay == null || !overlay.keyReleased(midpKeyCode)) {
 				postKeyReleased(midpKeyCode);
+				ContextHolder.getActivity().onAutoClickEventReleased(1, 0, 0, midpKeyCode);
 			}
 			return true;
 		}
@@ -1076,6 +1078,9 @@ public abstract class Canvas extends Displayable {
 								id,
 								cX,
 								cY));
+						if (id == 0) {
+							ContextHolder.getActivity().onAutoClickEventPressed(0, cX, cY, 0);
+						}
 					}
 					break;
 				case MotionEvent.ACTION_MOVE:
@@ -1158,6 +1163,9 @@ public abstract class Canvas extends Displayable {
 								id,
 								cX,
 								cY));
+						if (id == 0) {
+							ContextHolder.getActivity().onAutoClickEventReleased(0, cX, cY, 0);
+						}
 					}
 					break;
 				case MotionEvent.ACTION_CANCEL:

@@ -261,8 +261,8 @@
 
     <!-- Auto-Click feature -->
     <string name="auto_click">Auto Click</string>
-    <string name="auto_click_tap">Tap at Location</string>
-    <string name="auto_click_key">Key Press</string>
+    <string name="auto_click_tap">By Location</string>
+    <string name="auto_click_key">By Key</string>
     <string name="auto_click_start">Start</string>
     <string name="auto_click_stop">Stop</string>
     <string name="auto_click_interval">Interval (ms)</string>
@@ -272,12 +272,15 @@
     <string name="auto_click_key_code">J2ME Key Code\n(UP=-1,DOWN=-2,LEFT=-3,RIGHT=-4,FIRE=-5,0-9=48-57)</string>
     <string name="auto_click_running">Auto Click: RUNNING</string>
     <string name="auto_click_stopped">Auto Click: Stopped</string>
+    <string name="auto_click_record">Record</string>
+    <string name="auto_click_stop_record">Stop Recording</string>
+    <string name="auto_click_record_start">Recording started... Perform actions.</string>
 
     <string name="auto_click_add_action">Add Action</string>
     <string name="auto_click_remove_action">Remove</string>
     <string name="auto_click_delay">Delay after (ms)</string>
-    <string name="auto_click_save">Save Script</string>
-    <string name="auto_click_load">Load Script</string>
+    <string name="auto_click_save">Save</string>
+    <string name="auto_click_load">Load</string>
     <string name="auto_click_pick">Pick</string>
     <string name="auto_click_pick_instruction">Click on screen to select coordinates</string>
     <string name="auto_click_enter_filename">Enter filename</string>
@@ -293,7 +296,8 @@
         4. <b>Hold</b>: Duration the action is held down (ms).<br/>
         5. <b>Delay</b>: Wait time after this action before the next one (ms).<br/>
         6. <b>Save/Load</b>: Save your current sequence to a script file or load an existing one.<br/>
-        7. <b>Start</b>: Loops the entire sequence indefinitely. Close the menu to see it in action!
+        7. <b>Record</b>: Record your actions and save them as a script.<br/>
+        8. <b>Start</b>: Loops the entire sequence indefinitely. Close the menu to see it in action!
     ]]></string>
 
 </resources>

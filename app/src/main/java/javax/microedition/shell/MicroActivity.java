@@ -50,6 +50,7 @@ import android.widget.AdapterView.AdapterContextMenuInfo;
 import android.view.Gravity;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
@@ -114,6 +115,83 @@ public class MicroActivity extends AppCompatActivity {
 	private int menuKey;
 	private String appPath;
 	private final AutoClickManager autoClickManager = new AutoClickManager();
+	private java.util.List<AutoClickManager.AutoAction> lastAutoClickSequence = null;
+
+	private boolean isRecordingAutoClick = false;
+	private java.util.List<AutoClickManager.AutoAction> recordedSequence = null;
+	private long lastAutoClickEventTime = 0;
+	private AutoClickManager.AutoAction pendingAutoClickAction = null;
+	private View stopRecordingOverlay = null;
+
+	public void onAutoClickEventPressed(int type, int x, int y, int keyCode) {
+		if (!isRecordingAutoClick) return;
+		long now = System.currentTimeMillis();
+		long delay = now - lastAutoClickEventTime;
+		if (recordedSequence != null && !recordedSequence.isEmpty()) {
+			recordedSequence.get(recordedSequence.size() - 1).delayMs = Math.max(10, delay);
+		}
+		if (pendingAutoClickAction != null) {
+			pendingAutoClickAction.holdMs = Math.max(10, delay);
+			recordedSequence.add(pendingAutoClickAction);
+		}
+		pendingAutoClickAction = new AutoClickManager.AutoAction();
+		if (type == 0) {
+			pendingAutoClickAction.type = AutoClickManager.ActionType.TAP;
+			pendingAutoClickAction.x = x;
+			pendingAutoClickAction.y = y;
+		} else {
+			pendingAutoClickAction.type = AutoClickManager.ActionType.KEY;
+			pendingAutoClickAction.keyCode = keyCode;
+		}
+		pendingAutoClickAction.delayMs = 10;
+		lastAutoClickEventTime = now;
+	}
+
+	public void onAutoClickEventReleased(int type, int x, int y, int keyCode) {
+		if (!isRecordingAutoClick || pendingAutoClickAction == null) return;
+		long now = System.currentTimeMillis();
+		pendingAutoClickAction.holdMs = Math.max(10, now - lastAutoClickEventTime);
+		recordedSequence.add(pendingAutoClickAction);
+		pendingAutoClickAction = null;
+		lastAutoClickEventTime = now;
+	}
+
+	private void startAutoClickRecording() {
+		isRecordingAutoClick = true;
+		recordedSequence = new java.util.ArrayList<>();
+		lastAutoClickEventTime = System.currentTimeMillis();
+		pendingAutoClickAction = null;
+
+		Toast.makeText(this, R.string.auto_click_record_start, Toast.LENGTH_SHORT).show();
+
+		Button btn = new Button(this);
+		btn.setText(R.string.auto_click_stop_record);
+		btn.setBackgroundColor(0xAAFF0000);
+		btn.setTextColor(Color.WHITE);
+		stopRecordingOverlay = btn;
+		
+		FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2);
+		lp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+		lp.topMargin = (int) (50 * getResources().getDisplayMetrics().density);
+		
+		btn.setOnClickListener(v -> stopAutoClickRecording());
+		binding.displayableContainer.addView(stopRecordingOverlay, lp);
+	}
+
+	private void stopAutoClickRecording() {
+		isRecordingAutoClick = false;
+		if (stopRecordingOverlay != null) {
+			binding.displayableContainer.removeView(stopRecordingOverlay);
+			stopRecordingOverlay = null;
+		}
+		if (pendingAutoClickAction != null) {
+			pendingAutoClickAction.holdMs = Math.max(10, System.currentTimeMillis() - lastAutoClickEventTime);
+			recordedSequence.add(pendingAutoClickAction);
+			pendingAutoClickAction = null;
+		}
+		lastAutoClickSequence = recordedSequence;
+		showAutoClickDialog(lastAutoClickSequence);
+	}
 
 	private static class ActionRow {
 		LinearLayout view;
@@ -851,7 +929,7 @@ public class MicroActivity extends AppCompatActivity {
 	}
 
 	private void showAutoClickDialog() {
-		showAutoClickDialog(null);
+		showAutoClickDialog(lastAutoClickSequence);
 	}
 
 	/**
@@ -863,6 +941,7 @@ public class MicroActivity extends AppCompatActivity {
 		final Canvas canvas = (Canvas) current;
 		float dp = getResources().getDisplayMetrics().density;
 		int pad = (int) (16 * dp);
+		final AlertDialog[] dialog = {null};
 
 		ScrollView scroll = new ScrollView(this);
 		LinearLayout root = new LinearLayout(this);
@@ -874,14 +953,6 @@ public class MicroActivity extends AppCompatActivity {
 		LinearLayout header = new LinearLayout(this);
 		header.setOrientation(LinearLayout.HORIZONTAL);
 		header.setGravity(Gravity.CENTER_VERTICAL);
-		TextView tvTitle = new TextView(this);
-		tvTitle.setText(R.string.auto_click);
-		tvTitle.setTextSize(20);
-		tvTitle.setTextColor(Color.WHITE);
-		tvTitle.setPadding(0, 0, 0, (int)(8*dp));
-		tvTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-		header.addView(tvTitle, new LinearLayout.LayoutParams(0, -2, 1));
-
 		Button btnHelp = new Button(this, null, android.R.attr.buttonStyleSmall);
 		btnHelp.setText("?");
 		btnHelp.setTextColor(Color.CYAN);
@@ -893,6 +964,15 @@ public class MicroActivity extends AppCompatActivity {
 					.show();
 		});
 		header.addView(btnHelp);
+
+		Button btnRecord = new Button(this, null, android.R.attr.buttonStyleSmall);
+		btnRecord.setText(R.string.auto_click_record);
+		btnRecord.setTextColor(Color.WHITE);
+		header.addView(btnRecord);
+		btnRecord.setOnClickListener(v -> {
+			if (dialog[0] != null) dialog[0].dismiss();
+			startAutoClickRecording();
+		});
 
 		Button btnLoad = new Button(this, null, android.R.attr.buttonStyleSmall);
 		btnLoad.setText(R.string.auto_click_load);
@@ -910,7 +990,6 @@ public class MicroActivity extends AppCompatActivity {
 		root.addView(actionsContainer);
 
 		java.util.List<ActionRow> rows = new java.util.ArrayList<>();
-		AlertDialog[] dialog = {null};
 
 		final Runnable addRow = new Runnable() {
 			@Override
@@ -1030,12 +1109,21 @@ public class MicroActivity extends AppCompatActivity {
 					}
 					java.util.List<AutoClickManager.AutoAction> sequence = new java.util.ArrayList<>();
 					for (ActionRow row : rows) sequence.add(row.toAutoAction());
+					lastAutoClickSequence = sequence;
 					if (!sequence.isEmpty()) {
 						autoClickManager.startSequence(canvas, sequence);
 						Toast.makeText(this, R.string.auto_click_running, Toast.LENGTH_SHORT).show();
 					}
 				})
-				.setNegativeButton(android.R.string.cancel, null)
+				.setNegativeButton(android.R.string.cancel, (d, w) -> {
+					java.util.List<AutoClickManager.AutoAction> sequence = new java.util.ArrayList<>();
+					for (ActionRow row : rows) sequence.add(row.toAutoAction());
+					lastAutoClickSequence = sequence;
+				})
+				.setNeutralButton("New", (d, w) -> {
+					lastAutoClickSequence = null;
+					showAutoClickDialog(null);
+				})
 				.show();
 	}
 
