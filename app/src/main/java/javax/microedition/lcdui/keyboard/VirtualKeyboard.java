@@ -1296,12 +1296,16 @@ public class VirtualKeyboard implements Overlay, Runnable {
 			selected = true;
 			target.postKeyPressed(keyCode);
 			handler.postDelayed(this, 400);
+			MicroActivity activity = ContextHolder.getActivity();
+			if (activity != null) activity.onAutoClickEventPressed(1, 0, 0, keyCode);
 		}
 
 		public void onUp() {
 			selected = false;
 			handler.removeCallbacks(this);
 			target.postKeyReleased(keyCode);
+			MicroActivity activity = ContextHolder.getActivity();
+			if (activity != null) activity.onAutoClickEventReleased(1, 0, 0, keyCode);
 		}
 	}
 
@@ -1321,12 +1325,16 @@ public class VirtualKeyboard implements Overlay, Runnable {
 		protected void onDown() {
 			super.onDown();
 			target.postKeyPressed(secondKeyCode);
+			MicroActivity activity = ContextHolder.getActivity();
+			if (activity != null) activity.onAutoClickEventPressed(1, 0, 0, secondKeyCode);
 		}
 
 		@Override
 		public void onUp() {
 			super.onUp();
 			target.postKeyReleased(secondKeyCode);
+			MicroActivity activity = ContextHolder.getActivity();
+			if (activity != null) activity.onAutoClickEventReleased(1, 0, 0, secondKeyCode);
 		}
 
 		@Override
