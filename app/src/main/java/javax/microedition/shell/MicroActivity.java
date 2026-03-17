@@ -251,7 +251,7 @@ public class MicroActivity extends AppCompatActivity {
 			row2.addView(segTap, new LinearLayout.LayoutParams(0, -2, 1));
 
 			// KEY segment
-			etKeyCode = makeField(ctx, "Key Code", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_SIGNED, "-5");
+			etKeyCode = makeField(ctx, "Key", InputType.TYPE_CLASS_TEXT, "FIRE");
 			etKeyCode.setVisibility(View.GONE);
 			row2.addView(etKeyCode, new LinearLayout.LayoutParams(0, -2, 1));
 			view.addView(row2);
@@ -351,7 +351,7 @@ public class MicroActivity extends AppCompatActivity {
 			ar.btnPick.setTextColor(Color.WHITE);
 			sTap.addView(ar.btnPick);
 			r2.addView(sTap, new LinearLayout.LayoutParams(0, -2, 1));
-			ar.etKeyCode = addLabeledField(r2, "Key Code", InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_SIGNED, "-5");
+			ar.etKeyCode = addLabeledField(r2, "Key", InputType.TYPE_CLASS_TEXT, "FIRE");
 			((View) ar.etKeyCode.getParent()).setVisibility(View.GONE); // Hide the container
 			ar.view.addView(r2);
 
@@ -379,7 +379,7 @@ public class MicroActivity extends AppCompatActivity {
 				int y = parseIntSafe(etY.getText().toString(), 50);
 				return AutoClickManager.AutoAction.tap(x, y, hold, delay);
 			} else {
-				int kc = parseIntSafe(etKeyCode.getText().toString(), -5);
+				int kc = labelToKeyCode(etKeyCode.getText().toString());
 				return AutoClickManager.AutoAction.key(kc, hold, delay);
 			}
 		}
@@ -391,7 +391,7 @@ public class MicroActivity extends AppCompatActivity {
 				etY.setText(String.valueOf(action.y));
 			} else {
 				rbKey.setChecked(true);
-				etKeyCode.setText(String.valueOf(action.keyCode));
+				etKeyCode.setText(keyCodeToLabel(action.keyCode));
 			}
 			etHold.setText(String.valueOf(action.holdMs));
 			etDelay.setText(String.valueOf(action.delayMs));
@@ -1125,6 +1125,63 @@ public class MicroActivity extends AppCompatActivity {
 					showAutoClickDialog(null);
 				})
 				.show();
+	}
+
+	private static String keyCodeToLabel(int keyCode) {
+		switch (keyCode) {
+			case javax.microedition.lcdui.Canvas.KEY_UP:         return "UP";
+			case javax.microedition.lcdui.Canvas.KEY_DOWN:       return "DOWN";
+			case javax.microedition.lcdui.Canvas.KEY_LEFT:       return "LEFT";
+			case javax.microedition.lcdui.Canvas.KEY_RIGHT:      return "RIGHT";
+			case javax.microedition.lcdui.Canvas.KEY_FIRE:       return "FIRE";
+			case javax.microedition.lcdui.Canvas.KEY_SOFT_LEFT:  return "SOFT_L";
+			case javax.microedition.lcdui.Canvas.KEY_SOFT_RIGHT: return "SOFT_R";
+			case javax.microedition.lcdui.Canvas.KEY_CLEAR:      return "CLEAR";
+			case javax.microedition.lcdui.Canvas.KEY_SEND:       return "SEND";
+			case javax.microedition.lcdui.Canvas.KEY_END:        return "END";
+			case javax.microedition.lcdui.Canvas.KEY_STAR:       return "STAR";
+			case javax.microedition.lcdui.Canvas.KEY_POUND:      return "POUND";
+			case javax.microedition.lcdui.Canvas.KEY_NUM0:       return "0";
+			case javax.microedition.lcdui.Canvas.KEY_NUM1:       return "1";
+			case javax.microedition.lcdui.Canvas.KEY_NUM2:       return "2";
+			case javax.microedition.lcdui.Canvas.KEY_NUM3:       return "3";
+			case javax.microedition.lcdui.Canvas.KEY_NUM4:       return "4";
+			case javax.microedition.lcdui.Canvas.KEY_NUM5:       return "5";
+			case javax.microedition.lcdui.Canvas.KEY_NUM6:       return "6";
+			case javax.microedition.lcdui.Canvas.KEY_NUM7:       return "7";
+			case javax.microedition.lcdui.Canvas.KEY_NUM8:       return "8";
+			case javax.microedition.lcdui.Canvas.KEY_NUM9:       return "9";
+			default: return String.valueOf(keyCode);
+		}
+	}
+
+	private static int labelToKeyCode(String s) {
+		if (s == null) return javax.microedition.lcdui.Canvas.KEY_FIRE;
+		switch (s.trim().toUpperCase()) {
+			case "UP":     return javax.microedition.lcdui.Canvas.KEY_UP;
+			case "DOWN":   return javax.microedition.lcdui.Canvas.KEY_DOWN;
+			case "LEFT":   return javax.microedition.lcdui.Canvas.KEY_LEFT;
+			case "RIGHT":  return javax.microedition.lcdui.Canvas.KEY_RIGHT;
+			case "FIRE":   return javax.microedition.lcdui.Canvas.KEY_FIRE;
+			case "SOFT_L": return javax.microedition.lcdui.Canvas.KEY_SOFT_LEFT;
+			case "SOFT_R": return javax.microedition.lcdui.Canvas.KEY_SOFT_RIGHT;
+			case "CLEAR":  return javax.microedition.lcdui.Canvas.KEY_CLEAR;
+			case "SEND":   return javax.microedition.lcdui.Canvas.KEY_SEND;
+			case "END":    return javax.microedition.lcdui.Canvas.KEY_END;
+			case "STAR":   return javax.microedition.lcdui.Canvas.KEY_STAR;
+			case "POUND":  return javax.microedition.lcdui.Canvas.KEY_POUND;
+			case "0": return javax.microedition.lcdui.Canvas.KEY_NUM0;
+			case "1": return javax.microedition.lcdui.Canvas.KEY_NUM1;
+			case "2": return javax.microedition.lcdui.Canvas.KEY_NUM2;
+			case "3": return javax.microedition.lcdui.Canvas.KEY_NUM3;
+			case "4": return javax.microedition.lcdui.Canvas.KEY_NUM4;
+			case "5": return javax.microedition.lcdui.Canvas.KEY_NUM5;
+			case "6": return javax.microedition.lcdui.Canvas.KEY_NUM6;
+			case "7": return javax.microedition.lcdui.Canvas.KEY_NUM7;
+			case "8": return javax.microedition.lcdui.Canvas.KEY_NUM8;
+			case "9": return javax.microedition.lcdui.Canvas.KEY_NUM9;
+			default: return parseIntSafe(s, javax.microedition.lcdui.Canvas.KEY_FIRE);
+		}
 	}
 
 	private static int parseIntSafe(String s, int def) {
